@@ -2,87 +2,98 @@
 
 This project is a Rust-based replacement for [matetrack](https://github.com/vondele/matetrack). Below is a prioritized list of tasks to guide development. Please update this list as the project evolves.
 
-
 ## TODO (in order of importance)
 
-1. ~~**Implement UCI Engine Communication**~~ [x]
-    - [x] ~~Launch and communicate with UCI chess engines~~
-    - [x] ~~Send/receive UCI commands and parse responses~~
-    - Required UCI commands to implement:
-       - [x] ~~`uci` (initialize engine, get options)~~
-       - [x] ~~`isready` (check engine readiness)~~
-       - [x] ~~`setoption` (set engine options)~~
-       - [x] ~~`ucinewgame` (signal start of new game)~~
-       - [x] ~~`position` (set up position from FEN)~~
-       - [x] ~~`go` (start analysis/search)~~
-       - [x] ~~`stop` (stop analysis/search)~~
-       - [x] ~~`quit` (terminate engine)~~
-       - [x] ~~(Parse responses: `info`, `bestmove`, etc.)~~
-
-2. ~~**FEN Input and Management**~~ [x]
-   - [x] ~~Read FEN positions from file (e.g., FENs.json)~~
-   - [x] ~~Validate and manage FEN data~~
-
-3. ~~**Engine Result Parsing and Storage**~~ [x]
-   - [x] ~~Parse engine output for mate scores and moves~~
-   - [x] ~~Store results in a structured format (e.g., JSON, CSV)~~
-
-4. **Analysis Orchestration** [x]
-   - [x] ~~Run analysis for all FENs with configurable engine options~~
+### 1. Core Functionality
+1.1 ~~Implement UCI Engine Communication~~ [x]
+   - [x] Launch and communicate with UCI chess engines
+   - [x] Send/receive UCI commands and parse responses
+   - Required UCI commands:
+      - [x] `uci` (initialize engine, get options)
+      - [x] `isready` (check engine readiness)
+      - [x] `setoption` (set engine options)
+1.2 ~~FEN Input and Management~~ [x]
+1.3 ~~Engine Result Parsing and Storage~~ [x]
+1.4 Analysis Orchestration [x]
+   - [x] Run analysis for all FENs with configurable engine options
    - [ ] Support multi-threaded or parallel analysis (map to --concurrency, --threads)
 
-5. ~~**Result Aggregation and Statistics**~~ [x]
-   - [x] ~~Aggregate mate statistics from engine results~~
-   - [x] ~~Compute and display summary statistics (e.g., mate found, depth, time)~~
-   - [ ] Show nodes and depth statistics for best mates found (--showAllStats)
-   - [ ] Provide cumulative statistics for nodes searched and time used (--bench)
-
-6. **Command-Line Interface (CLI) Parity** [ ]
+### 2. CLI and User Experience
+2.1 Command-Line Interface (CLI) Parity [ ]
    - [x] Provide a user-friendly CLI for configuration and execution
    - [x] Support options for engine path, FEN file, output file, etc.
    - [ ] Support all matecheck.py CLI options:
-       - [ ] --engine (engine binary path)
-       - [ ] --nodes (nodes limit per position)
-       - [ ] --depth (depth limit per position)
-       - [ ] --time (time limit per position)
-       - [ ] --mate (mate limit per position)
-       - [ ] --hash (hash table size)
-       - [ ] --threads (threads per position)
-       - [ ] --syzygyPath (tablebase path)
-       - [ ] --syzygy50MoveRule (50-move rule for Syzygy)
-       - [ ] --maxTBscore (max TB win score)
-       - [ ] --minTBscore (min TB win score)
-       - [ ] --maxValidMate (max mate score)
-       - [ ] --minValidMate (min mate score)
-       - [ ] --concurrency (total threads)
-       - [ ] --engineOpts (engine options as JSON)
-       - [ ] --epdFile (input file(s))
-       - [ ] --showAllIssues (show all unique UCI info lines with an issue)
-       - [ ] --shortTBPVonly (only consider short PVs an issue)
-       - [ ] --showAllStats (show nodes/depth stats)
-       - [ ] --bench (cumulative stats)
-       - [ ] --logFile (log engine output)
+      - [ ] --engine (engine binary path)
+      - [ ] --nodes (nodes limit per position)
+      - [ ] --depth (depth limit per position)
+      - [ ] --time (time limit per position)
+      - [ ] --mate (mate limit per position)
+      - [ ] --hash (hash table size)
+      - [ ] --threads (threads per position)
+      - [ ] --syzygyPath (tablebase path)
+      - [ ] --syzygy50MoveRule (50-move rule for Syzygy)
+      - [ ] --maxTBscore (max TB win score)
+      - [ ] --minTBscore (min TB win score)
+      - [ ] --maxValidMate (max mate score)
+      - [ ] --minValidMate (min mate score)
+      - [ ] --concurrency (total threads)
+      - [ ] --engineOpts (engine options as JSON)
+      - [ ] --epdFile (input file(s))
+      - [ ] --showAllIssues (show all unique UCI info lines with an issue)
+      - [ ] --shortTBPVonly (only consider short PVs an issue)
+      - [ ] --showAllStats (show nodes/depth stats)
+      - [ ] --bench (cumulative stats)
+      - [ ] --logFile (log engine output)
    - [ ] Print help/usage message matching matecheck.py
 
-7. **Error Handling and Logging** [ ]
+### 3. Reliability and Safety
+3.1 Error Handling and Logging [ ]
    - [ ] Robust error handling for engine crashes, timeouts, invalid FENs
    - [ ] Logging of analysis progress and issues
    - [ ] Log engine output to file (--logFile)
+   - [ ] Safety: Replace all instances of .unwrap() in UCI parsing with proper Error handling
+3.2 Engine Reliability (Stability) [ ]
+   - [ ] Implement result-based parsing: use match/if let and a custom UciParseError enum to skip bad lines instead of panicking
+   - [ ] Use tokio::process::Command for async engine spawning and per-FEN timeouts; kill hung engines automatically
+   - [ ] Durability: Implement Drop trait for Engine processes to prevent orphaned processes
+   - [ ] Implement Drop for EngineInstance to ensure kill() is sent to engine process on error or scope exit
 
-8. **Testing and Validation** [ ]
+### 4. Performance and Concurrency
+4.1 Fearless Concurrency (Speed) [ ]
+   - [ ] Refactor: Replace sequential loop with Rayon parallel iterator
+   - [ ] Implement parallel analysis using Rayon or Tokio (.par_iter() or async tasks)
+   - [ ] Resource Management: Add a "Max Threads" CLI argument and implement a Semaphore
+   - [ ] Use atomic aggregators (Arc<Mutex<Stats>> or AtomicU64) for thread-safe statistics
+   - [ ] Implement a semaphore guard (tokio::sync::Semaphore) to limit active engine processes
+
+### 5. Advanced Features and Statistics
+5.1 ~~Result Aggregation and Statistics~~ [x]
+   - [x] Aggregate mate statistics from engine results
+   - [x] Compute and display summary statistics (e.g., mate found, depth, time)
+   - [ ] Show nodes and depth statistics for best mates found (--showAllStats)
+   - [ ] Provide cumulative statistics for nodes searched and time used (--bench)
+5.2 Advanced Statistics (Precision) [ ]
+   - [ ] Use std::time::Instant for high-precision timing
+   - [ ] Implement custom parser for UCI info strings to extract nps, hashfull, etc.
+
+### 6. Portability and Distribution
+6.1 Zero Dependencies (Portability) [ ]
+   - [ ] Configure Cargo.toml for static linking (musl target for Linux)
+   - [ ] Embed default configuration or FEN set using include_str!
+6.2 CI/CD [ ]
+   - [ ] Set up a GitHub Action to compile static binaries for Windows, Linux, and macOS
+
+### 7. Testing and Documentation
+7.1 Testing and Validation [ ]
    - [ ] Unit and integration tests for all modules
    - [ ] Cross-validation with matetrack results
-
-9. **Documentation** [ ]
+7.2 Documentation [ ]
    - [ ] Document code, usage, and configuration
    - [ ] Provide examples and troubleshooting tips
    - [ ] Document all CLI options and their mapping to matecheck.py
 
-10. **Performance Optimization** [ ]
-   - [ ] Profile and optimize for speed and memory usage
-   - [ ] Support for large FEN sets and long-running analyses
-
-11. **Optional: GUI or Web Interface** [ ]
+### 8. Optional
+8.1 Optional: GUI or Web Interface [ ]
    - [ ] (Future) Add a graphical or web-based interface for easier use
 
 ---
