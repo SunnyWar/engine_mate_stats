@@ -5,23 +5,11 @@ This project is a Rust-based replacement for [matetrack](https://github.com/vond
 ## TODO (in order of importance)
 
 ### 1. Core Functionality
-1.1 ~~Implement UCI Engine Communication~~ [x]
-   - [x] Launch and communicate with UCI chess engines
-   - [x] Send/receive UCI commands and parse responses
-   - Required UCI commands:
-      - [x] `uci` (initialize engine, get options)
-      - [x] `isready` (check engine readiness)
-      - [x] `setoption` (set engine options)
-1.2 ~~FEN Input and Management~~ [x]
-1.3 ~~Engine Result Parsing and Storage~~ [x]
-1.4 Analysis Orchestration [x]
-   - [x] Run analysis for all FENs with configurable engine options
+1.4 Analysis Orchestration [ ]
    - [ ] Support multi-threaded or parallel analysis (map to --concurrency, --threads)
 
 ### 2. CLI and User Experience
 2.1 Command-Line Interface (CLI) Parity [ ]
-   - [x] Provide a user-friendly CLI for configuration and execution
-   - [x] Support options for engine path, FEN file, output file, etc.
    - [ ] Support all matecheck.py CLI options:
       - [ ] --engine (engine binary path)
       - [ ] --nodes (nodes limit per position)
@@ -67,9 +55,7 @@ This project is a Rust-based replacement for [matetrack](https://github.com/vond
    - [ ] Implement a semaphore guard (tokio::sync::Semaphore) to limit active engine processes
 
 ### 5. Advanced Features and Statistics
-5.1 ~~Result Aggregation and Statistics~~ [x]
-   - [x] Aggregate mate statistics from engine results
-   - [x] Compute and display summary statistics (e.g., mate found, depth, time)
+5.1 Result Aggregation and Statistics [ ]
    - [ ] Show nodes and depth statistics for best mates found (--showAllStats)
    - [ ] Provide cumulative statistics for nodes searched and time used (--bench)
 5.2 Advanced Statistics (Precision) [ ]
@@ -95,6 +81,8 @@ This project is a Rust-based replacement for [matetrack](https://github.com/vond
 ### 8. Optional
 8.1 Optional: GUI or Web Interface [ ]
    - [ ] (Future) Add a graphical or web-based interface for easier use
+8.2 Optional: Graphing Capability [ ]
+   - [ ] Implement graphing and visualization features similar to matetrack (e.g., result plots, statistics charts)
 
 ---
 
