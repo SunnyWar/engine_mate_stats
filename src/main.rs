@@ -111,6 +111,7 @@ fn main() -> anyhow::Result<()> {
                         nps,
                         score.clone(),
                         bestmove.clone(),
+                        depth as u32,
                     );
                     results.push(result);
                     break;

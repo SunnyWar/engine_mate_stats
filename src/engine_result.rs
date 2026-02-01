@@ -5,6 +5,7 @@ pub struct EngineResult {
     pub nps: u64,
     pub score: String,
     pub bestmove: String,
+    pub depth: u32,
 }
 
 impl EngineResult {
@@ -15,6 +16,7 @@ impl EngineResult {
         nps: u64,
         score: String,
         bestmove: String,
+        depth: u32,
     ) -> Self {
         EngineResult {
             fen,
@@ -23,6 +25,7 @@ impl EngineResult {
             nps,
             score,
             bestmove,
+            depth,
         }
     }
 }

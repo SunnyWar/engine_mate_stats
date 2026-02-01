@@ -32,12 +32,16 @@ pub fn print_engine_stats(results: &[EngineResult]) {
     let mut total_nps = 0u64;
     let mut total_time = 0u64;
     let mut peak_nps = 0u64;
-        use std::collections::BTreeMap;
-        use std::f64;
-        let mut mate_in_counts: BTreeMap<u32, u64> = BTreeMap::new();
+    use std::collections::BTreeMap;
+    use std::f64;
+    let mut mate_in_counts: BTreeMap<u32, u64> = BTreeMap::new();
     let mut total_ebf = 0f64;
     let mut depth_sum = 0u64;
 
+    // (Removed duplicate accumulation loop)
+    let mut nodes_vec = Vec::with_capacity(results.len());
+    let mut min_nodes = u64::MAX;
+    let mut max_nodes = 0u64;
     for res in results {
         total_nodes += res.nodes;
         total_nps += res.nps;
@@ -45,6 +49,13 @@ pub fn print_engine_stats(results: &[EngineResult]) {
         if res.nps > peak_nps {
             peak_nps = res.nps;
         }
+        if res.nodes < min_nodes {
+            min_nodes = res.nodes;
+        }
+        if res.nodes > max_nodes {
+            max_nodes = res.nodes;
+        }
+        nodes_vec.push(res.nodes as f64);
         // Count mate-in-Ns from score string (e.g., "mate 1", "mate -2", etc.)
         if let Some(idx) = res.score.find("mate ") {
             let after = &res.score[idx + 5..];
@@ -56,75 +67,80 @@ pub fn print_engine_stats(results: &[EngineResult]) {
             }
         }
     }
-        let mut nodes_vec = Vec::with_capacity(results.len());
-        let mut min_nodes = u64::MAX;
-        let mut max_nodes = 0u64;
-        for res in results {
-            total_nodes += res.nodes;
-            total_nps += res.nps;
-            total_time += res.time_ms;
-            if res.nps > peak_nps {
-                peak_nps = res.nps;
-            }
-            if res.nodes < min_nodes { min_nodes = res.nodes; }
-            if res.nodes > max_nodes { max_nodes = res.nodes; }
-            nodes_vec.push(res.nodes as f64);
-            // Count mate-in-Ns from score string (e.g., "mate 1", "mate -2", etc.)
-            if let Some(idx) = res.score.find("mate ") {
-                let after = &res.score[idx + 5..];
-                if let Some(num_str) = after.split_whitespace().next() {
-                    if let Ok(n) = num_str.parse::<i32>() {
-                        let n_abs = n.abs() as u32;
-                        *mate_in_counts.entry(n_abs).or_insert(0) += 1;
-                    }
-                }
-            }
-        }
 
     let count = results.len() as f64;
     let avg_nodes = total_nodes as f64 / count;
     let avg_nps = total_nps as f64 / count;
     let avg_time = total_time as f64 / count;
 
-    // For EBF, if all searches used the same depth, infer from first result
-    let default_depth = 10f64; // Change if you pass depth in EngineResult
-    let avg_ebf = if avg_nodes > 0.0 && default_depth > 0.0 {
-        avg_nodes.powf(1.0 / default_depth)
+    // Use per-result depth for EBF calculation
+    let mut ebf_sum = 0.0;
+    let mut ebf_count = 0.0;
+    for res in results {
+        let depth = res.depth as f64;
+        if res.nodes > 0 && depth > 0.0 {
+            ebf_sum += (res.nodes as f64).powf(1.0 / depth);
+            ebf_count += 1.0;
+        }
+    }
+    let avg_ebf = if ebf_count > 0.0 {
+        ebf_sum / ebf_count
     } else {
         0.0
     };
 
-        // Node stddev
-        let mean = avg_nodes;
-        let stddev = if count > 1.0 {
-            let var = nodes_vec.iter().map(|&n| (n - mean).powi(2)).sum::<f64>() / (count - 1.0);
-            var.sqrt()
-        } else {
-            0.0
-        };
+    let default_depth = if results.is_empty() {
+        0
+    } else {
+        results[0].depth
+    };
 
-        // Format NPS as M (millions)
-        let avg_nps_m = avg_nps / 1_000_000.0;
+    // Node stddev
+    let mean = avg_nodes;
+    let stddev = if count > 1.0 {
+        let var = nodes_vec.iter().map(|&n| (n - mean).powi(2)).sum::<f64>() / (count - 1.0);
+        var.sqrt()
+    } else {
+        0.0
+    };
 
-        // First move hits placeholder (requires ground truth)
-        let first_move_hits = 0.82; // 82% as a placeholder
+    // Format NPS as M (millions)
+    let avg_nps_m = avg_nps / 1_000_000.0;
 
-        println!("Engine Comparison Profile (Depth {})", default_depth as u32);
-        println!("------------------------------------");
-        println!("General Efficiency:");
-        println!("  Avg EBF:         {:<6.2} (Target: < 2.2)", avg_ebf);
-        println!("  Avg NPS:         {:.2}M   (Machine Dependent)", avg_nps_m);
-        println!("  Avg Time:        {:.1}ms  (Machine Dependent)", avg_time);
-        println!();
-        println!("Search Robustness:");
-        println!("  Node StdDev:     {:<7.0} (Lower = more stable search)", stddev);
-        println!("  Max Node Outlier: {:<7} (The \"hardest\" position found)", max_nodes);
-        println!("  Min Node Speed:  {:<7} (The \"easiest\" position found)", min_nodes);
-        println!();
-        println!("Tactical Accuracy:");
-        let total_mates: u64 = mate_in_counts.values().sum();
-        println!("  Mates Found:     {}       (Across {} positions)", total_mates, count as u64);
-        println!("  First Move Hits: {:.0}%     (Move ordering quality)", first_move_hits * 100.0);
+    // First move hits placeholder (requires ground truth)
+    let first_move_hits = 0.82; // 82% as a placeholder
+
+    println!("Engine Comparison Profile (Depth {})", default_depth as u32);
+    println!("------------------------------------");
+    println!("General Efficiency:");
+    println!("  Avg EBF:         {:<6.2} (Target: < 2.2)", avg_ebf);
+    println!("  Avg NPS:         {:.2}M   (Machine Dependent)", avg_nps_m);
+    println!("  Avg Time:        {:.1}ms  (Machine Dependent)", avg_time);
+    println!();
+    println!("Search Robustness:");
+    println!(
+        "  Node StdDev:     {:<7.0} (Lower = more stable search)",
+        stddev
+    );
+    println!(
+        "  Max Node Outlier: {:<7} (The \"hardest\" position found)",
+        max_nodes
+    );
+    println!(
+        "  Min Node Speed:  {:<7} (The \"easiest\" position found)",
+        min_nodes
+    );
+    println!();
+    println!("Tactical Accuracy:");
+    let total_mates: u64 = mate_in_counts.values().sum();
+    println!(
+        "  Mates Found:     {}       (Across {} positions)",
+        total_mates, count as u64
+    );
+    println!(
+        "  First Move Hits: {:.0}%     (Move ordering quality)",
+        first_move_hits * 100.0
+    );
     println!("\nEngine Search Statistics Summary:");
     println!("  Positions analyzed: {}", count as u64);
     println!("  Average nodes per search: {:.2}", avg_nodes);
