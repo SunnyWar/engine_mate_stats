@@ -1,3 +1,5 @@
+mod analyzer;
+mod engine_result;
 mod fens;
 mod uci_engine;
 use std::env;
@@ -40,6 +42,8 @@ fn main() -> anyhow::Result<()> {
         default_depth
     };
 
+    let mut results = Vec::new();
+
     for i in 0..n {
         if let Some(fen) = fens.get_next() {
             println!("Sending FEN {}: {}", i + 1, fen);
@@ -48,11 +52,67 @@ fn main() -> anyhow::Result<()> {
             let go_cmd = format!("go depth {}", depth);
             engine.send_command(&go_cmd)?;
 
+            // Variables to collect info
+            let mut nodes = 0u64;
+            let mut time_ms = 0u64;
+            let mut nps = 0u64;
+            let mut score = String::new();
+            let mut bestmove = String::new();
+
             // Wait for engine to finish (look for 'bestmove')
             loop {
                 let line = engine.read_line()?;
                 println!("Engine: {}", line);
-                if line.starts_with("bestmove") {
+                if line.starts_with("info ") {
+                    // Try to parse info line for nodes, time, nps, score
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    let mut idx = 0;
+                    while idx < parts.len() {
+                        match parts[idx] {
+                            "nodes" => {
+                                if idx + 1 < parts.len() {
+                                    nodes = parts[idx + 1].parse().unwrap_or(nodes);
+                                    idx += 1;
+                                }
+                            }
+                            "time" => {
+                                if idx + 1 < parts.len() {
+                                    time_ms = parts[idx + 1].parse().unwrap_or(time_ms);
+                                    idx += 1;
+                                }
+                            }
+                            "nps" => {
+                                if idx + 1 < parts.len() {
+                                    nps = parts[idx + 1].parse().unwrap_or(nps);
+                                    idx += 1;
+                                }
+                            }
+                            "score" => {
+                                if idx + 2 < parts.len() {
+                                    score = format!("{} {}", parts[idx + 1], parts[idx + 2]);
+                                    idx += 2;
+                                }
+                            }
+                            _ => {}
+                        }
+                        idx += 1;
+                    }
+                } else if line.starts_with("bestmove") {
+                    // Parse bestmove
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    if parts.len() > 1 {
+                        bestmove = parts[1].to_string();
+                    }
+                    // Store result
+                    let result = engine_result::EngineResult::new(
+                        fen.to_string(),
+                        nodes,
+                        time_ms,
+                        nps,
+                        score.clone(),
+                        bestmove.clone(),
+                    );
+                    results.push(result);
                     break;
                 }
             }
@@ -61,5 +121,11 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    // Analyze all results after processing all FENs
+    let mut analyzer = analyzer::Analyzer::new();
+    for result in results {
+        analyzer.add_result(result);
+    }
+    analyzer.analyze();
     Ok(())
 }

@@ -1,14 +1,14 @@
-struct EngineResult {
-    fen: String,
-    nodes: u64,
-    time_ms: u64,
-    nps: u64,
-    score: String,
-    bestmove: String,
+pub struct EngineResult {
+    pub fen: String,
+    pub nodes: u64,
+    pub time_ms: u64,
+    pub nps: u64,
+    pub score: String,
+    pub bestmove: String,
 }
 
 impl EngineResult {
-    fn new(
+    pub fn new(
         fen: String,
         nodes: u64,
         time_ms: u64,
