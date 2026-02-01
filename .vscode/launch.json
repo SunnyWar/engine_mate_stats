@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug engine_mate_stats with reckless.exe",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=engine_mate_stats"
+                ]
+            },
+            "args": [
+                "D:/Reckless/target/release/reckless.exe"
+            ]
+        }
+        
+
+    ]
+}
