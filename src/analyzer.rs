@@ -149,4 +149,5 @@ pub fn print_engine_stats(results: &[EngineResult]) {
             println!("    Mate in {:<2}: {}", n, count);
         }
     }
+    println!("------------------------------------");
 }
