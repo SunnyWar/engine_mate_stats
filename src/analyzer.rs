@@ -24,13 +24,13 @@ impl Analyzer {
 
     /// Analyze and write consolidated stats to CSV file (append mode)
     pub fn analyze_and_write_csv(&self, csv_path: &str, engine_name: &str, cmdline: &str) {
-        let stats = compute_stats(&self.results);
-        print_stats_human_readable(&stats, engine_name, cmdline);
+        let (stats, mate_in_counts) = compute_stats(&self.results);
+        print_stats_human_readable(&stats, engine_name, cmdline, &mate_in_counts);
         if self.results.is_empty() {
             return;
         }
         use std::fs::OpenOptions;
-        use std::io::{BufWriter, Write};
+        use std::io::BufWriter;
         let file_exists = std::path::Path::new(csv_path).exists();
         let file = OpenOptions::new()
             .create(true)
@@ -41,43 +41,53 @@ impl Analyzer {
             .has_headers(!file_exists)
             .from_writer(BufWriter::new(file));
 
-        // Write header if file is new
+        // Always output header for mates in 1..=20
+        let max_n = 20;
         if !file_exists {
-            let _ = writer.write_record(&[
-                "engine_name",
-                "cmdline",
-                "positions_analyzed",
-                "avg_ebf",
-                "avg_nps",
-                "avg_nps_m",
-                "avg_time_ms",
-                "avg_nodes",
-                "avg_depth",
-                "node_stddev",
-                "max_nodes",
-                "min_nodes",
-                "total_mates",
-                "first_move_hits",
-                "peak_nps",
-            ]);
+            let mut header = vec![
+                "engine_name".to_string(),
+                "cmdline".to_string(),
+                "positions_analyzed".to_string(),
+                "avg_ebf".to_string(),
+                "avg_nps".to_string(),
+                "avg_nps_m".to_string(),
+                "avg_time_ms".to_string(),
+                "avg_nodes".to_string(),
+                "avg_depth".to_string(),
+                "node_stddev".to_string(),
+                "max_nodes".to_string(),
+                "min_nodes".to_string(),
+                "total_mates".to_string(),
+                "first_move_hits".to_string(),
+                "peak_nps".to_string(),
+            ];
+            for n in 1..=max_n {
+                header.push(format!("mates in {}", n));
+            }
+            let _ = writer.write_record(&header);
         }
-        let _ = writer.write_record(&[
-            engine_name,
-            cmdline,
-            stats.positions_analyzed.to_string().as_str(),
-            format!("{:.4}", stats.avg_ebf).as_str(),
-            format!("{:.2}", stats.avg_nps).as_str(),
-            format!("{:.2}", stats.avg_nps_m).as_str(),
-            format!("{:.2}", stats.avg_time_ms).as_str(),
-            format!("{:.2}", stats.avg_nodes).as_str(),
-            format!("{:.2}", stats.avg_depth).as_str(),
-            format!("{:.0}", stats.node_stddev).as_str(),
-            stats.max_nodes.to_string().as_str(),
-            stats.min_nodes.to_string().as_str(),
-            stats.total_mates.to_string().as_str(),
-            format!("{:.0}", stats.first_move_hits * 100.0).as_str(),
-            stats.peak_nps.to_string().as_str(),
-        ]);
+        let mut record = vec![
+            engine_name.to_string(),
+            cmdline.to_string(),
+            stats.positions_analyzed.to_string(),
+            format!("{:.4}", stats.avg_ebf),
+            format!("{:.2}", stats.avg_nps),
+            format!("{:.2}", stats.avg_nps_m),
+            format!("{:.2}", stats.avg_time_ms),
+            format!("{:.2}", stats.avg_nodes),
+            format!("{:.2}", stats.avg_depth),
+            format!("{:.0}", stats.node_stddev),
+            stats.max_nodes.to_string(),
+            stats.min_nodes.to_string(),
+            stats.total_mates.to_string(),
+            format!("{:.0}", stats.first_move_hits * 100.0),
+            stats.peak_nps.to_string(),
+        ];
+        for n in 1..=max_n {
+            let count = mate_in_counts.get(&n).cloned().unwrap_or(0);
+            record.push(count.to_string());
+        }
+        let _ = writer.write_record(&record);
         let _ = writer.flush();
     }
 }
@@ -99,24 +109,27 @@ struct StatsSummary {
     peak_nps: u64,
 }
 
-fn compute_stats(results: &[EngineResult]) -> StatsSummary {
+fn compute_stats(results: &[EngineResult]) -> (StatsSummary, BTreeMap<u32, u64>) {
     use std::collections::BTreeMap;
     if results.is_empty() {
-        return StatsSummary {
-            positions_analyzed: 0,
-            avg_ebf: 0.0,
-            avg_nps: 0.0,
-            avg_nps_m: 0.0,
-            avg_time_ms: 0.0,
-            avg_nodes: 0.0,
-            avg_depth: 0.0,
-            node_stddev: 0.0,
-            max_nodes: 0,
-            min_nodes: 0,
-            total_mates: 0,
-            first_move_hits: 0.0,
-            peak_nps: 0,
-        };
+        return (
+            StatsSummary {
+                positions_analyzed: 0,
+                avg_ebf: 0.0,
+                avg_nps: 0.0,
+                avg_nps_m: 0.0,
+                avg_time_ms: 0.0,
+                avg_nodes: 0.0,
+                avg_depth: 0.0,
+                node_stddev: 0.0,
+                max_nodes: 0,
+                min_nodes: 0,
+                total_mates: 0,
+                first_move_hits: 0.0,
+                peak_nps: 0,
+            },
+            BTreeMap::new(),
+        );
     }
     let mut total_nodes = 0u64;
     let mut total_depth = 0u64;
@@ -175,7 +188,7 @@ fn compute_stats(results: &[EngineResult]) -> StatsSummary {
     };
     // Node stddev
     let mean = avg_nodes;
-    let node_stddev = if count > 1.0 {
+    let stddev = if count > 1.0 {
         let var = nodes_vec.iter().map(|&n| (n - mean).powi(2)).sum::<f64>() / (count - 1.0);
         var.sqrt()
     } else {
@@ -186,24 +199,32 @@ fn compute_stats(results: &[EngineResult]) -> StatsSummary {
     // First move hits placeholder (requires ground truth)
     let first_move_hits = 0.82; // 82% as a placeholder
     let total_mates: u64 = mate_in_counts.values().sum();
-    StatsSummary {
-        positions_analyzed: count as u64,
-        avg_ebf,
-        avg_nps,
-        avg_nps_m,
-        avg_time_ms: avg_time,
-        avg_nodes,
-        avg_depth,
-        node_stddev,
-        max_nodes,
-        min_nodes,
-        total_mates,
-        first_move_hits,
-        peak_nps,
-    }
+    (
+        StatsSummary {
+            positions_analyzed: count as u64,
+            avg_ebf,
+            avg_nps,
+            avg_nps_m,
+            avg_time_ms: avg_time,
+            avg_nodes,
+            avg_depth,
+            node_stddev: stddev,
+            max_nodes,
+            min_nodes,
+            total_mates,
+            first_move_hits,
+            peak_nps,
+        },
+        mate_in_counts,
+    )
 }
 
-fn print_stats_human_readable(stats: &StatsSummary, engine_name: &str, cmdline: &str) {
+fn print_stats_human_readable(
+    stats: &StatsSummary,
+    engine_name: &str,
+    cmdline: &str,
+    mate_in_counts: &BTreeMap<u32, u64>,
+) {
     println!("------------------------------------");
     println!("Command line: {}", cmdline);
     println!("Analysis for engine: {}", engine_name);
@@ -250,6 +271,18 @@ fn print_stats_human_readable(stats: &StatsSummary, engine_name: &str, cmdline: 
     println!("  Average NPS: {:.2}", stats.avg_nps);
     println!("  Average time per search (ms): {:.2}", stats.avg_time_ms);
     println!("  Peak NPS: {}", stats.peak_nps);
+    println!("  Mate-in-Ns found:");
+    let max_n = mate_in_counts
+        .iter()
+        .filter(|kv| *kv.1 > 0)
+        .map(|(n, _)| *n)
+        .max()
+        .unwrap_or(0)
+        .max(1);
+    for n in 1..=max_n {
+        let count = mate_in_counts.get(&n).cloned().unwrap_or(0);
+        println!("    Mate in {:<2}: {}", n, count);
+    }
     println!("------------------------------------");
 }
 
