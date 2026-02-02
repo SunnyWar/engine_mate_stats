@@ -6,11 +6,11 @@ use std::env;
 
 fn main() -> anyhow::Result<()> {
     let default_num_to_analyze = 10;
-    let default_depth = 10;
+    let default_nodes = 10000;
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        println!("Usage: engine_mate_stats.exe <path_to_engine> [<number_of_positions>] [<depth>]");
+        println!("Usage: engine_mate_stats.exe <path_to_engine> [<number_of_positions>] [<nodes>]");
         return Ok(());
     }
 
@@ -35,11 +35,11 @@ fn main() -> anyhow::Result<()> {
         default_num_to_analyze
     };
 
-    // Get depth from args or default
-    let depth: usize = if args.len() > 3 {
-        args[3].parse().unwrap_or(default_depth)
+    // Get nodes from args or default
+    let nodes_limit: usize = if args.len() > 3 {
+        args[3].parse().unwrap_or(default_nodes)
     } else {
-        default_depth
+        default_nodes
     };
 
     let mut results = Vec::new();
@@ -49,7 +49,7 @@ fn main() -> anyhow::Result<()> {
             println!("Sending FEN {}: {}", i + 1, fen);
             let cmd = format!("position fen {}", fen);
             engine.send_command(&cmd)?;
-            let go_cmd = format!("go depth {}", depth);
+            let go_cmd = format!("go nodes {}", nodes_limit);
             engine.send_command(&go_cmd)?;
 
             // Variables to collect info
@@ -58,13 +58,14 @@ fn main() -> anyhow::Result<()> {
             let mut nps = 0u64;
             let mut score = String::new();
             let mut bestmove = String::new();
+            let mut depth = 0u32;
 
             // Wait for engine to finish (look for 'bestmove')
             loop {
                 let line = engine.read_line()?;
                 println!("Engine: {}", line);
                 if line.starts_with("info ") {
-                    // Try to parse info line for nodes, time, nps, score
+                    // Try to parse info line for nodes, time, nps, score, depth
                     let parts: Vec<&str> = line.split_whitespace().collect();
                     let mut idx = 0;
                     while idx < parts.len() {
@@ -93,6 +94,12 @@ fn main() -> anyhow::Result<()> {
                                     idx += 2;
                                 }
                             }
+                            "depth" => {
+                                if idx + 1 < parts.len() {
+                                    depth = parts[idx + 1].parse().unwrap_or(depth);
+                                    idx += 1;
+                                }
+                            }
                             _ => {}
                         }
                         idx += 1;
@@ -111,7 +118,7 @@ fn main() -> anyhow::Result<()> {
                         nps,
                         score.clone(),
                         bestmove.clone(),
-                        depth as u32,
+                        depth,
                     );
                     results.push(result);
                     break;

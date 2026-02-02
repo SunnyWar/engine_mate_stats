@@ -1,4 +1,6 @@
 use crate::engine_result::EngineResult;
+use std::collections::BTreeMap;
+use std::f64;
 
 pub struct Analyzer {
     results: Vec<EngineResult>,
@@ -29,21 +31,19 @@ pub fn print_engine_stats(results: &[EngineResult]) {
     }
 
     let mut total_nodes = 0u64;
+    let mut total_depth = 0u64;
     let mut total_nps = 0u64;
     let mut total_time = 0u64;
     let mut peak_nps = 0u64;
-    use std::collections::BTreeMap;
-    use std::f64;
-    let mut mate_in_counts: BTreeMap<u32, u64> = BTreeMap::new();
-    let mut total_ebf = 0f64;
-    let mut depth_sum = 0u64;
 
-    // (Removed duplicate accumulation loop)
+    let mut mate_in_counts: BTreeMap<u32, u64> = BTreeMap::new();
+
     let mut nodes_vec = Vec::with_capacity(results.len());
     let mut min_nodes = u64::MAX;
     let mut max_nodes = 0u64;
     for res in results {
         total_nodes += res.nodes;
+        total_depth += res.depth as u64;
         total_nps += res.nps;
         total_time += res.time_ms;
         if res.nps > peak_nps {
@@ -72,6 +72,7 @@ pub fn print_engine_stats(results: &[EngineResult]) {
     let avg_nodes = total_nodes as f64 / count;
     let avg_nps = total_nps as f64 / count;
     let avg_time = total_time as f64 / count;
+    let avg_depth = total_depth as f64 / count;
 
     // Use per-result depth for EBF calculation
     let mut ebf_sum = 0.0;
@@ -89,12 +90,6 @@ pub fn print_engine_stats(results: &[EngineResult]) {
         0.0
     };
 
-    let default_depth = if results.is_empty() {
-        0
-    } else {
-        results[0].depth
-    };
-
     // Node stddev
     let mean = avg_nodes;
     let stddev = if count > 1.0 {
@@ -110,7 +105,7 @@ pub fn print_engine_stats(results: &[EngineResult]) {
     // First move hits placeholder (requires ground truth)
     let first_move_hits = 0.82; // 82% as a placeholder
 
-    println!("Engine Comparison Profile (Depth {})", default_depth as u32);
+    println!("Engine Comparison Profile");
     println!("------------------------------------");
     println!("General Efficiency:");
     println!("  Avg EBF:         {:<6.2} (Target: < 2.2)", avg_ebf);
@@ -144,6 +139,7 @@ pub fn print_engine_stats(results: &[EngineResult]) {
     println!("\nEngine Search Statistics Summary:");
     println!("  Positions analyzed: {}", count as u64);
     println!("  Average nodes per search: {:.2}", avg_nodes);
+    println!("  Average depth per search: {:.2}", avg_depth);
     println!("  Average effective branching factor: {:.4}", avg_ebf);
     println!("  Average NPS: {:.2}", avg_nps);
     println!("  Average time per search (ms): {:.2}", avg_time);
