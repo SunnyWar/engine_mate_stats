@@ -1,40 +1,32 @@
-use std::env;
+use clap::Parser;
 
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
 pub struct Config {
+    /// Path to the UCI engine binary
+    #[arg(long, short)]
     pub engine_path: String,
+
+    /// Number of positions to analyze
+    #[arg(long, short = 'p', default_value_t = 10)]
     pub num_to_analyze: usize,
+
+    /// Nodes limit per position
+    #[arg(long, short = 'n', default_value_t = 10000)]
     pub nodes: usize,
+
+    /// Threads for engine
+    #[arg(long, short, default_value_t = 8)]
     pub threads: usize,
 }
 
 pub fn parse_args_and_config() -> Option<Config> {
-    let default_num_to_analyze = 10;
-    let default_nodes = 10000;
-    let default_threads = 8;
-    let args: Vec<String> = env::args().collect();
-
-    if args.len() < 2 {
-        println!("Usage: engine_mate_stats.exe <path_to_engine> [<number_of_positions>] [<nodes>]");
-        return None;
+    let config = Config::try_parse();
+    match config {
+        Ok(cfg) => Some(cfg),
+        Err(e) => {
+            e.print().expect("Failed to print clap error");
+            None
+        }
     }
-
-    let engine_path = args[1].clone();
-    let num_to_analyze = if args.len() > 2 {
-        args[2].parse().unwrap_or(default_num_to_analyze)
-    } else {
-        default_num_to_analyze
-    };
-    let nodes = if args.len() > 3 {
-        args[3].parse().unwrap_or(default_nodes)
-    } else {
-        default_nodes
-    };
-    let threads = default_threads;
-
-    Some(Config {
-        engine_path,
-        num_to_analyze,
-        nodes,
-        threads,
-    })
 }
