@@ -7,6 +7,7 @@ use std::env;
 fn main() -> anyhow::Result<()> {
     let default_num_to_analyze = 10;
     let default_nodes = 10000;
+    let default_threads = 8;
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
@@ -19,10 +20,15 @@ fn main() -> anyhow::Result<()> {
     let engine_path = &args[1];
     let mut engine = uci_engine::UciEngine::start(engine_path)?;
 
+    let mut engine_name = String::new();
     engine.send_command("uci")?;
 
     while let Ok(line) = engine.read_line() {
         println!("Engine: {}", line);
+        if line.starts_with("id name ") {
+            engine_name = line["id name ".len()..].to_string();
+        }
+
         if line == "uciok" {
             break;
         }
@@ -46,9 +52,13 @@ fn main() -> anyhow::Result<()> {
 
     for i in 0..n {
         if let Some(fen) = fens.get_next() {
+            let thread_cmd = format!("setoption name Threads value {}", default_threads);
+            engine.send_command(&thread_cmd)?;
+
             println!("Sending FEN {}: {}", i + 1, fen);
             let cmd = format!("position fen {}", fen);
             engine.send_command(&cmd)?;
+
             let go_cmd = format!("go nodes {}", nodes_limit);
             engine.send_command(&go_cmd)?;
 
@@ -134,6 +144,8 @@ fn main() -> anyhow::Result<()> {
     for result in results {
         analyzer.add_result(result);
     }
+
+    println!("Analysis for engine: {}", engine_name);
     analyzer.analyze();
     Ok(())
 }
