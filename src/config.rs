@@ -4,7 +4,7 @@ use clap::{Args, Parser};
 #[command(author, version, about, long_about = None)]
 pub struct Config {
     /// Path to the UCI engine binary
-    #[arg(long, short)]
+    #[arg(long, short = 'e')]
     pub engine_path: String,
 
     /// Number of positions to analyze
