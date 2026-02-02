@@ -24,16 +24,24 @@ pub fn process_fens(
     engine: &mut UciEngine,
     fens: &mut Fens,
     n: usize,
-    nodes_limit: usize,
+    nodes: Option<usize>,
+    depth: Option<usize>,
 ) -> Result<Vec<EngineResult>> {
     let mut results = Vec::new();
+    let default_depth = 10;
     for i in 0..n {
         if let Some(fen) = fens.get_next() {
             println!("Sending FEN {}: {}", i + 1, fen);
             let cmd = format!("position fen {}", fen);
             engine.send_command(&cmd)?;
 
-            let go_cmd = format!("go nodes {}", nodes_limit);
+            let go_cmd = if let Some(nodes_limit) = nodes {
+                format!("go nodes {}", nodes_limit)
+            } else if let Some(depth_limit) = depth {
+                format!("go depth {}", depth_limit)
+            } else {
+                format!("go depth {}", default_depth)
+            };
             engine.send_command(&go_cmd)?;
 
             // Variables to collect info

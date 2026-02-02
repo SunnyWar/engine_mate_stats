@@ -29,6 +29,7 @@ fn main() -> anyhow::Result<()> {
         &mut fens,
         config.num_to_analyze,
         config.nodes,
+        config.depth,
     )?;
 
     let mut analyzer = analyzer::Analyzer::new();
