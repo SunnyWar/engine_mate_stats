@@ -1,8 +1,6 @@
 use anyhow::{Result, anyhow};
-use shakmaty_uci::UciMessage;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::str::FromStr;
 
 pub struct UciEngine {
     child: Child,
@@ -36,14 +34,6 @@ impl UciEngine {
         })
     }
 
-    /// Send a UCI command to the engine using a UciMessage.
-    pub fn send_uci_message(&mut self, msg: &UciMessage) -> Result<()> {
-        let line = msg.to_string();
-        writeln!(self.stdin, "{}", line)?;
-        self.stdin.flush()?;
-        Ok(())
-    }
-
     /// Send a raw UCI command string (for compatibility).
     pub fn send_command(&mut self, command: &str) -> Result<()> {
         writeln!(self.stdin, "{}", command)?;
@@ -59,13 +49,6 @@ impl UciEngine {
             return Err(anyhow!("Engine process closed output"));
         }
         Ok(line.trim_end().to_string())
-    }
-
-    /// Read a line of output and try to parse it as a UciMessage.
-    pub fn read_uci_message(&mut self) -> Result<UciMessage> {
-        let line = self.read_line()?;
-        UciMessage::from_str(&line)
-            .map_err(|e| anyhow!("Failed to parse UCI message: {} (line: '{}')", e, line))
     }
 }
 
