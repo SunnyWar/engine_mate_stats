@@ -6,12 +6,20 @@ mod fens;
 mod uci_engine;
 
 fn main() -> anyhow::Result<()> {
+    env_logger::init();
+
     let config = match config::parse_args_and_config() {
         Some(cfg) => cfg,
         None => return Ok(()),
     };
 
-    let mut fens = fens::Fens::load_fens();
+    let mut fens = match fens::Fens::load_fens() {
+        Ok(f) => f,
+        Err(e) => {
+            log::error!("Failed to load FENs: {e}");
+            return Ok(());
+        }
+    };
 
     let mut engine = uci_engine::UciEngine::start(&config.engine_path)?;
     let engine_name = engine_processor::initialize_engine(&mut engine, config.threads)?;

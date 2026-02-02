@@ -12,13 +12,16 @@ pub struct Fens {
 }
 
 impl Fens {
-    pub fn load_fens() -> Self {
+    pub fn load_fens() -> Result<Self, String> {
         let json = include_str!("./FENs.json");
-        let fens_file: FensFile = serde_json::from_str(json).expect("Invalid FENs.json format");
-        Fens {
+        let fens_file: FensFile = serde_json::from_str(json).map_err(|e| {
+            log::error!("Invalid FENs.json format: {e}");
+            format!("Invalid FENs.json format: {e}")
+        })?;
+        Ok(Fens {
             fens: fens_file.fens,
             index: 0,
-        }
+        })
     }
 
     pub fn get_next(&mut self) -> Option<&str> {

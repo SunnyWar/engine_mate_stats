@@ -25,7 +25,8 @@ pub fn parse_args_and_config() -> Option<Config> {
     match config {
         Ok(cfg) => Some(cfg),
         Err(e) => {
-            e.print().expect("Failed to print clap error");
+            log::error!("Argument parsing error: {e}");
+            let _ = e.print();
             None
         }
     }
