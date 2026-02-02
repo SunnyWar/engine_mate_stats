@@ -3,19 +3,32 @@ use crate::fens::Fens;
 use crate::uci_engine::UciEngine;
 use anyhow::Result;
 
+pub fn initialize_engine(engine: &mut UciEngine, threads: usize) -> Result<String> {
+    engine.send_command("uci")?;
+    let mut engine_name = String::new();
+    while let Ok(line) = engine.read_line() {
+        println!("Engine: {}", line);
+        if line.starts_with("id name ") {
+            engine_name = line["id name ".len()..].to_string();
+        }
+        if line == "uciok" {
+            break;
+        }
+    }
+    let thread_cmd = format!("setoption name Threads value {}", threads);
+    engine.send_command(&thread_cmd)?;
+    Ok(engine_name)
+}
+
 pub fn process_fens(
     engine: &mut UciEngine,
     fens: &mut Fens,
     n: usize,
     nodes_limit: usize,
-    default_threads: usize,
 ) -> Result<Vec<EngineResult>> {
     let mut results = Vec::new();
     for i in 0..n {
         if let Some(fen) = fens.get_next() {
-            let thread_cmd = format!("setoption name Threads value {}", default_threads);
-            engine.send_command(&thread_cmd)?;
-
             println!("Sending FEN {}: {}", i + 1, fen);
             let cmd = format!("position fen {}", fen);
             engine.send_command(&cmd)?;

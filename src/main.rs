@@ -51,28 +51,15 @@ fn main() -> anyhow::Result<()> {
     };
 
     let mut fens = fens::Fens::load_fens();
+
     let mut engine = uci_engine::UciEngine::start(&config.engine_path)?;
-
-    let mut engine_name = String::new();
-    engine.send_command("uci")?;
-
-    while let Ok(line) = engine.read_line() {
-        println!("Engine: {}", line);
-        if line.starts_with("id name ") {
-            engine_name = line["id name ".len()..].to_string();
-        }
-
-        if line == "uciok" {
-            break;
-        }
-    }
+    let engine_name = engine_processor::initialize_engine(&mut engine, config.threads)?;
 
     let results = engine_processor::process_fens(
         &mut engine,
         &mut fens,
         config.num_to_analyze,
         config.nodes,
-        config.threads,
     )?;
 
     // Analyze all results after processing all FENs
