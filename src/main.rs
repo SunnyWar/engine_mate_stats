@@ -5,6 +5,8 @@ mod engine_result;
 mod fens;
 mod uci_engine;
 
+use std::env;
+
 fn main() -> anyhow::Result<()> {
     env_logger::init();
 
@@ -37,6 +39,10 @@ fn main() -> anyhow::Result<()> {
         analyzer.add_result(result);
     }
 
+    // Print the command line used
+    let cmdline: String = env::args().collect::<Vec<_>>().join(" ");
+    println!("------------------------------------");
+    println!("Command line: {}", cmdline);
     println!("Analysis for engine: {}", engine_name);
     analyzer.analyze();
     Ok(())

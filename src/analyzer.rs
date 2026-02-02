@@ -105,7 +105,6 @@ pub fn print_engine_stats(results: &[EngineResult]) {
     // First move hits placeholder (requires ground truth)
     let first_move_hits = 0.82; // 82% as a placeholder
 
-    println!("Engine Comparison Profile");
     println!("------------------------------------");
     println!("General Efficiency:");
     println!("  Avg EBF:         {:<6.2} (Target: < 2.2)", avg_ebf);
