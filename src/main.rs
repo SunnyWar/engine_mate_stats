@@ -39,11 +39,8 @@ fn main() -> anyhow::Result<()> {
         analyzer.add_result(result);
     }
 
-    // Print the command line used
+    // Print the final result
     let cmdline: String = env::args().collect::<Vec<_>>().join(" ");
-    println!("------------------------------------");
-    println!("Command line: {}", cmdline);
-    println!("Analysis for engine: {}", engine_name);
-    analyzer.analyze();
+    analyzer.analyze_and_write_csv(&config.output_csv, &engine_name, &cmdline);
     Ok(())
 }

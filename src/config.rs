@@ -1,4 +1,4 @@
-use clap::{Args, Parser};
+use clap::Parser;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -22,6 +22,10 @@ pub struct Config {
     /// Threads for engine
     #[arg(long, short, default_value_t = 8)]
     pub threads: usize,
+
+    /// Output CSV file name
+    #[arg(long, short = 'o', default_value = "results.csv")]
+    pub output_csv: String,
 }
 
 pub fn parse_args_and_config() -> Option<Config> {
