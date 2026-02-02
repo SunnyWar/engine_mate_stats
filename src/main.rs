@@ -48,8 +48,27 @@ fn main() -> anyhow::Result<()> {
         default_nodes
     };
 
-    let mut results = Vec::new();
+    let results = analyze_fens(&mut engine, &mut fens, n, nodes_limit, default_threads)?;
 
+    // Analyze all results after processing all FENs
+    let mut analyzer = analyzer::Analyzer::new();
+    for result in results {
+        analyzer.add_result(result);
+    }
+
+    println!("Analysis for engine: {}", engine_name);
+    analyzer.analyze();
+    Ok(())
+}
+
+fn analyze_fens(
+    engine: &mut uci_engine::UciEngine,
+    fens: &mut fens::Fens,
+    n: usize,
+    nodes_limit: usize,
+    default_threads: usize,
+) -> anyhow::Result<Vec<engine_result::EngineResult>> {
+    let mut results = Vec::new();
     for i in 0..n {
         if let Some(fen) = fens.get_next() {
             let thread_cmd = format!("setoption name Threads value {}", default_threads);
@@ -138,14 +157,5 @@ fn main() -> anyhow::Result<()> {
             break;
         }
     }
-
-    // Analyze all results after processing all FENs
-    let mut analyzer = analyzer::Analyzer::new();
-    for result in results {
-        analyzer.add_result(result);
-    }
-
-    println!("Analysis for engine: {}", engine_name);
-    analyzer.analyze();
-    Ok(())
+    Ok(results)
 }
