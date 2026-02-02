@@ -4,7 +4,14 @@ mod fens;
 mod uci_engine;
 use std::env;
 
-fn main() -> anyhow::Result<()> {
+struct Config {
+    engine_path: String,
+    num_to_analyze: usize,
+    nodes: usize,
+    threads: usize,
+}
+
+fn parse_args_and_config() -> Option<Config> {
     let default_num_to_analyze = 10;
     let default_nodes = 10000;
     let default_threads = 8;
@@ -12,13 +19,39 @@ fn main() -> anyhow::Result<()> {
 
     if args.len() < 2 {
         println!("Usage: engine_mate_stats.exe <path_to_engine> [<number_of_positions>] [<nodes>]");
-        return Ok(());
+        return None;
     }
+
+    let engine_path = args[1].clone();
+    let num_to_analyze = if args.len() > 2 {
+        args[2].parse().unwrap_or(default_num_to_analyze)
+    } else {
+        default_num_to_analyze
+    };
+    let nodes = if args.len() > 3 {
+        args[3].parse().unwrap_or(default_nodes)
+    } else {
+        default_nodes
+    };
+    let threads = default_threads;
+
+    Some(Config {
+        engine_path,
+        num_to_analyze,
+        nodes,
+        threads,
+    })
+}
+
+fn main() -> anyhow::Result<()> {
+    let config = match parse_args_and_config() {
+        Some(cfg) => cfg,
+        None => return Ok(()),
+    };
 
     let mut fens = fens::Fens::load_fens();
 
-    let engine_path = &args[1];
-    let mut engine = uci_engine::UciEngine::start(engine_path)?;
+    let mut engine = uci_engine::UciEngine::start(&config.engine_path)?;
 
     let mut engine_name = String::new();
     engine.send_command("uci")?;
@@ -34,21 +67,13 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    // Get N from args or default
-    let n: usize = if args.len() > 2 {
-        args[2].parse().unwrap_or(default_num_to_analyze)
-    } else {
-        default_num_to_analyze
-    };
-
-    // Get nodes from args or default
-    let nodes_limit: usize = if args.len() > 3 {
-        args[3].parse().unwrap_or(default_nodes)
-    } else {
-        default_nodes
-    };
-
-    let results = analyze_fens(&mut engine, &mut fens, n, nodes_limit, default_threads)?;
+    let results = analyze_fens(
+        &mut engine,
+        &mut fens,
+        config.num_to_analyze,
+        config.nodes,
+        config.threads,
+    )?;
 
     // Analyze all results after processing all FENs
     let mut analyzer = analyzer::Analyzer::new();
